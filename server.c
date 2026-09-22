@@ -58,21 +58,34 @@ int main()
 
     buffer[bytes_received] = '\0';
 
-    char response[1024] = "HTTP/1.1 200 OK\r\n"
-                          "Content-Type: text/html\r\n"
-                          "Content-Length: %d\r\n"
-                          "Connection: close\r\n"
-                          "\r\n"
-                          "%s";
+    FILE *file = fopen("index.html", "rb");
 
-    char *body =
-        "<h1>Welcome</h1>"
-        "<h2 style=\"color:red\">This is subtitle</h2>";
-    size_t body_length = strlen(body);
+    if (file == NULL)
+    {
+        perror("File failed to open");
+        close(client_fd);
+        close(server_fd);
+    }
 
-    snprintf(response, sizeof(response), response, body_length, body);
+    fseek(file, 0, SEEK_END);
+    long file_size = ftell(file);
+    rewind(file);
 
-    send(client_fd, response, strlen(response), 0);
+    char *body = malloc(file_size + 1);
+
+    fread(body, 1, file_size, file);
+    body[file_size] = '\0';
+
+    char response[1024];
+    const char *header = "HTTP/1.1 200 OK\r\n"
+                         "Content-Type: text/html\r\n"
+                         "Content-Length: %ld\r\n"
+                         "Connection: close\r\n"
+                         "\r\n";
+
+    int head_len = snprintf(response, sizeof(response), header, file_size);
+    send(client_fd, response, head_len, 0);
+    send(client_fd, body, file_size, 0);
 
     printf("Browser connected! Client FD: %d\n", client_fd);
 
